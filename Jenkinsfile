@@ -7,9 +7,6 @@ try {
         stage "Dependencies"
             lein "-U deps"
 
-        stage "Test"
-            make "test-deps"
-
         stage "Deploy"
             lein "with-profiles deployer deploy"
             }

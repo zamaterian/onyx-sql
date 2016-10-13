@@ -19,7 +19,14 @@
                  [com.mchange/c3p0 "0.9.2.1"]
                  [aero "0.2.0"]
                  [honeysql "0.5.1"]]
-  :profiles {:dev {:dependencies [[mysql/mysql-connector-java "5.1.25"]]
+  :profiles {:deployer {:repositories [["snapshots" {:url "file:///var/go/mvn-repo/"
+                                                     :sign-releases false}]
+                                       ["releases" {:url "file:///var/go/mvn-repo/"
+                                                    :creds nil
+                                                    :sign-releases false}]]}
+
+
+             :dev {:dependencies [[mysql/mysql-connector-java "5.1.25"]]
                    :plugins [[lein-set-version "0.4.1"]
                              [lein-update-dependency "0.1.2"]
                              [lein-pprint "1.1.1"]]
