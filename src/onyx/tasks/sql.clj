@@ -9,6 +9,9 @@
    (s/optional-key :sql/lower-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/upper-bound) (s/cond-pre s/Uuid s/Num)
    (s/optional-key :sql/read-buffer) s/Num
+
+   ; FIXME :checkpoint/force-reset? s/Bool
+   (s/optional-key :checkpoint/key) s/Str
    :sql/classname s/Str
    :sql/subprotocol s/Str
    :sql/subname s/Str

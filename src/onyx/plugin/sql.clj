@@ -91,6 +91,11 @@
                         (not (nil? acked)))
                    (recur (update-partition updated-content acked))))))
 
+(defn check-completed [task-map checkpointed]
+  (when (and (not (:checkpoint/key task-map))
+             (= :complete (:status checkpointed)))
+    (throw (Exception. "Restarted task, however it was already completed for this job.
+                       This is currently unhandled."))))
 (defn inject-partition-keys
   [table-partitioner {:keys [onyx.core/pipeline onyx.core/task-map onyx.core/log onyx.core/job-id onyx.core/task-id] :as event}
    lifecycle]
@@ -98,17 +103,37 @@
         checkpoint-ch (:checkpoint-ch pipeline)
         checkpoint-ms (:checkpoint-ms pipeline)
         pending-messages (:pending-messages pipeline)
+
+        job-task-id (str job-id "#" task-id)
+        checkpoint-key (or  (:checkpoint/key task-map) job-task-id)
+        ;_ (set-starting-offset! log task-map checkpoint-key start-tx)
+
+        checkpointed (try
+                        (extensions/read-chunk log :chunk checkpoint-key)
+                          (catch Exception e (prn "no checkpointed udner ..")))
+
+        _ (prn "checkpointed #" (count checkpointed) )
+;        _ (validate-within-supplied-bounds start-tx max-tx (:largest checkpointed))
+        _ (check-completed task-map checkpointed)
+
+
         pool (task->pool task-map)
         [partitions partitioner-event-map] (table-partitioner (assoc event :sql/pool pool))
-        content (:content pipeline)
-        chunk (into {}
-                    (map (fn [p] [p :incomplete])
-                         partitions))
+ _ (prn "after table-partitioner")
+        ; not in use content (:content pipeline)
+
+        chunk (when-not checkpointed
+                (prn  "chunk not checkpunted")
+                (into {}
+                      (map (fn [p] [p :incomplete])
+                           partitions)))
         ;; Attempt to write. It will fail if it's already been written. Read it back
         ;; in either case.
-        checkpoint-key (str job-id "#" task-id)
-        _ (extensions/write-chunk log :chunk chunk checkpoint-key)
-        content (extensions/read-chunk log :chunk checkpoint-key)
+        _ (when chunk (prn "when chunk") (extensions/write-chunk log :chunk chunk checkpoint-key))
+
+        content (or checkpointed (extensions/read-chunk log :chunk checkpoint-key))
+
+        _ (prn "content checkpointed #" (count content) )
         commit-go-loop (start-commit-loop! log checkpoint-key content checkpoint-ch checkpoint-ms)]
     (go
      (try
